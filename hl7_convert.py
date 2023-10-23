@@ -21,17 +21,17 @@ def csv_to_hl7(csv_filename):
         reader = csv.DictReader(file)
         ##hsn_list is for making sure we don't repeat redundant fields like msh or pid
         hsn_list = []
+        index = 1
         for row in reader:
-            
-            # Create a new HL7 message
-            #MAYBE CHANGE LATER
-            msg = Message("ADT_A01")
-              
             # Create MSH segment
             #####msh = Segment("MSH", msg)
-           
             #print(row['LAB_ID'])
             if row['LAB_ID'] not in hsn_list:
+                index = 1 # we use this to track Multiple segments
+                # Create a new HL7 message
+                #MAYBE CHANGE LATER
+                msg = Message("ADT_A01")
+                
                 msg.msh.MSH_2 = "^~\&"
                 msg.msh.MSH_3 = "HORIZON"
                 msg.msh.MSH_4 = "PHAMATECH"
@@ -67,17 +67,7 @@ def csv_to_hl7(csv_filename):
                 #msg.pv1.PV1_7 = row['']
                 msg.pv1.PV1_52 = ''
                 
-                
-                # Add the first FT1 segment
-                ft1_1 = msg.add_segment('FT1')
-                ft1_1.ft1_1 = '1'  # Set Transaction ID
-                ft1_1.ft1_22 = row['LAB_ID']
-                
-                # Add the second FT1 segment
-                ft1_2 = msg.add_segment('FT1')
-                ft1_2.ft1_1 = '2'  # Set Transaction ID
-                ft1_2.ft1_2 = '67890'  # Set Transaction Batch ID
-                
+                                                
                 ## multiple dg fields
                 msg.dg1.DG1_1 = '1'
                 msg.dg1.DG1_3 = row['DX_CODE']
@@ -105,13 +95,16 @@ def csv_to_hl7(csv_filename):
                 msg.in1.IN1_49 = ''
                 
                 #print(pid)
-                #hl7_messages.append(str(msg))
                 hl7_messages.append(msg)
                 
+            ft1 = msg.add_segment('FT1')
+            ft1.ft1_1 = f'{index}'
+            ft1.ft1_22 = row['LAB_ID']
             
             ##we put the labid in the hsn_list for check on the next itteration
             hsn_list.append(row['LAB_ID'])
             
+            index = index + 1
             ##
     return hl7_messages
 
@@ -128,16 +121,19 @@ if __name__ == "__main__":
         #print(hl7.msh.value)
         #print(hl7.pid.value)
    
-    for hl7 in hl7_list:
-       print(hl7.pid.PID_3.value)
+    # for hl7 in hl7_list:
+       # print(hl7.ft1.ft1_22.value)
    
     #file.write(str(hl7_list))
-    # for hl7 in hl7_list:
-        # with open('test.hl7', 'w') as file:
-            # file.write(hl7.msh.value + '\n')
-            # file.write(hl7.pid.value + '\n')
-            # file.write(hl7.pv1.value + '\n')
-            # file.write(hl7.dg1.value + '\n')
-            # file.write(hl7.gt1.value + '\n')
-            # file.write(hl7.in1.value + '\n')
-            # file.write('\n\n\n')
+    for hl7 in hl7_list:
+        with open(f'{hl7.ft1.ft1_22.value}.hl7', 'w') as file:
+            file.write(hl7.msh.value + '\n')
+            file.write(hl7.pid.value + '\n')
+            file.write(hl7.pv1.value + '\n')
+            for transaction in hl7.ft1:
+                file.write(transaction.value + '\n')
+            #file.write(hl7.ft1.value + '\n')
+            file.write(hl7.dg1.value + '\n')
+            file.write(hl7.gt1.value + '\n')
+            file.write(hl7.in1.value + '\n')
+            file.write('\n\n\n')
