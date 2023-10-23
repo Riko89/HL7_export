@@ -1,0 +1,4 @@
+#Ignore all .csv files
+*.csv
+#ignore all hl7 files
+*.hl7
