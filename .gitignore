@@ -2,3 +2,7 @@
 *.csv
 #ignore all hl7 files
 *.hl7
+#ignore all .pdf files
+**/*.pdf
+#ignore .txt files in processed
+processed/*.txt

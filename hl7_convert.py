@@ -1,33 +1,46 @@
 import csv
 from hl7apy.core import Message, Segment
 from datetime import datetime
+import os
+from encode64 import FileEncoder # calling our encode64.py code FileEncoder Class
 
-#def convert_date_to_hl7_format(date_str):
-#    try:
-#        # Assuming input format is YYYY/MM/DD
-#        return datetime.strptime(date_str, '%m/%d/%Y').strftime('%Y%m%d')
-#    except ValueError:
-#        print(f"Failed to convert date: {date_str} DOB FIELD")
-#        return None
+
+def read_encoded_file(lab_id):
+    content = ''
+    lab_id = f'Encoded_{lab_id}'
+    for file_name in os.listdir('./processed'):
+        name_without_extension, extension = os.path.splitext(file_name)
+        if name_without_extension == lab_id:
+            #print('Matched!')
+            with open(f'./processed/{file_name}', 'r') as file:
+                content = file.read()
+            break
+        else:
+            content = '^APPLICATION^PDF^BASE64^'
+        
+    return content
 
 def csv_to_hl7(csv_filename):
     hl7_messages = []
+    hsn_list = [] #instantiate variables
+    index = 1
+    dg_index = 1
     # Get current date and time
     now = datetime.now()
 
     # Format as YYYYMMDDHHMMSS
     formatted_date = now.strftime('%Y%m%d%H%M%S')
+    reader = ''
     with open(csv_filename, 'r') as file:
         reader = csv.DictReader(file)
-        ##hsn_list is for making sure we don't repeat redundant fields like msh or pid
-        hsn_list = []
-        index = 1
+    ##hsn_list is for making sure we don't repeat redundant fields like msh or pid        
         for row in reader:
             # Create MSH segment
             #####msh = Segment("MSH", msg)
             #print(row['LAB_ID'])
             if row['LAB_ID'] not in hsn_list:
                 index = 1 # we use this to track Multiple segments
+                dg_index = 1
                 # Create a new HL7 message
                 #MAYBE CHANGE LATER
                 msg = Message("ADT_A01")
@@ -53,7 +66,6 @@ def csv_to_hl7(csv_filename):
                 msg.pid.PID_1 = '1'
                 msg.pid.PID_3 = row["PATIENT_SSN"]
                 msg.pid.PID_5 = row["PATIENT_NAME"]       
-                #msg.pid.PID_7 = convert_date_to_hl7_format(row["PATIENT_DOB"])
                 msg.pid.PID_7 = row["PATIENT_DOB"] # We need to know what to put in the case of Missing Date of Birth
                 msg.pid.PID_8 = row["PATIENT_SEX"]
                 msg.pid.PID_11 = row["PATIENT_ADDRESS"]
@@ -66,13 +78,16 @@ def csv_to_hl7(csv_filename):
                 msg.pv1.PV1_7 = 'Reffering Doctor (CORONIS HEALTH PROVIDING MD)????'
                 #msg.pv1.PV1_7 = row['']
                 msg.pv1.PV1_52 = ''
-                
-                                                
+                                                                        
                 ## multiple dg fields
-                msg.dg1.DG1_1 = '1'
-                msg.dg1.DG1_3 = row['DX_CODE']
-                msg.dg1.DG1_4 = 'Description???'
-                msg.dg1.DG1_19 = ''
+                dg_temp = row['DX_CODE'].split(',') # get all DX codes
+                for dx_code in dg_temp:
+                    dg1 = msg.add_segment('DG1')
+                    dg1.DG1_1 = f'{dg_index}'
+                    dg1.DG1_3 = dx_code
+                    dg1.DG1_4 = 'Description???'
+                    dg1.DG1_19 = ''
+                    dg_index = dg_index + 1
                 
                 msg.gt1.GT1_1 = '1'
                 msg.gt1.GT1_2 = 'Account# ???'
@@ -94,36 +109,35 @@ def csv_to_hl7(csv_filename):
                 msg.in1.IN1_36 = row['INS1_POLICY_NUM']
                 msg.in1.IN1_49 = ''
                 
-                #print(pid)
+                msg.obx.OBX_1 = '1'
+                msg.obx.OBX_2 = 'ED???'
+                read_encoded_file(row['LAB_ID'])
+                msg.obx.OBX_5 = read_encoded_file(row['LAB_ID'])
                 hl7_messages.append(msg)
-                
+            
+            #for each itteration of loop until we reach next LAB_ID append another ft1 segment
             ft1 = msg.add_segment('FT1')
             ft1.ft1_1 = f'{index}'
+            ft1.ft1_6 = 'transaction type???'
+            ft1.ft1_7 = 'CPT Code^Description????'
+            ft1.ft1_8 = row['DRUG_TEST']
             ft1.ft1_22 = row['LAB_ID']
-            
+            ft1.ft1_26 = '' 
+
             ##we put the labid in the hsn_list for check on the next itteration
             hsn_list.append(row['LAB_ID'])
-            
-            index = index + 1
-            ##
+            index = index + 1       #increment Index for next itteration of ft1
+        
     return hl7_messages
 
 
 ##Main Function
 if __name__ == "__main__":
     # Convert CSV to HL7
+    pdf_encoded = FileEncoder() #instantiate FileEncoder
+    pdf_encoded.process_files()
     hl7_list = csv_to_hl7('test.csv')
-
-    #print(hl7_list)
-    # Print or store the HL7 messages
-
-    #for hl7 in hl7_list:
-        #print(hl7.msh.value)
-        #print(hl7.pid.value)
-   
-    # for hl7 in hl7_list:
-       # print(hl7.ft1.ft1_22.value)
-   
+    
     #file.write(str(hl7_list))
     for hl7 in hl7_list:
         with open(f'{hl7.ft1.ft1_22.value}.hl7', 'w') as file:
@@ -133,7 +147,10 @@ if __name__ == "__main__":
             for transaction in hl7.ft1:
                 file.write(transaction.value + '\n')
             #file.write(hl7.ft1.value + '\n')
-            file.write(hl7.dg1.value + '\n')
+            for dg1 in hl7.dg1:
+                file.write(dg1.value + '\n')
             file.write(hl7.gt1.value + '\n')
             file.write(hl7.in1.value + '\n')
+            file.write(hl7.obx.value + '\n')
             file.write('\n\n\n')
+            
