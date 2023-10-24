@@ -137,7 +137,7 @@ if __name__ == "__main__":
     pdf_encoded = FileEncoder() #instantiate FileEncoder
     pdf_encoded.process_files()
     hl7_list = csv_to_hl7('test.csv')
-    
+    #testing
     #file.write(str(hl7_list))
     for hl7 in hl7_list:
         with open(f'{hl7.ft1.ft1_22.value}.hl7', 'w') as file:
