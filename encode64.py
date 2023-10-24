@@ -3,7 +3,7 @@ import base64
 
 class FileEncoder:
 
-    def __init__(self, input_directory='./unencoded_file', output_directory='./processed', archive_directory='./unencoded_file/Archive'):
+    def __init__(self, input_directory='./unencoded_files', output_directory='./processed', archive_directory='./unencoded_files/Archive'):
         self.input_directory = input_directory
         self.output_directory = output_directory
         self.archive_directory = archive_directory
