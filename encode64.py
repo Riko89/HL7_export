@@ -1,3 +1,4 @@
+#### Written by Eric Remington Davey  ####
 import os
 import base64
 
@@ -41,3 +42,4 @@ class FileEncoder:
 
 # encoder = FileEncoder()
 # encoder.process_files()
+#### Written by Eric Remington Davey  ####
