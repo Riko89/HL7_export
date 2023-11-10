@@ -38,7 +38,7 @@ def parse_relationship_code_coronis(relationship_string):
         'OTHER ADULT': '26'
     }
     relation_code = codes.get(relationship_string)
-    if code:
+    if relation_code:
         print('relationship_code matched')
     else:
         relation_code = '13'
